@@ -55,80 +55,86 @@ def replace_mentions_with_names(text, client):
     
     return text
 
-@app.event("message")
-def handle_message(event, context):
-    """メッセージイベントの処理"""
-    # ワークスペースの特定
-    workspace_id = context.get("team_id")
-    if workspace_id not in WORKSPACE_CONFIGS:
-        print(f"未設定のワークスペース: {workspace_id}")
-        return
+def setup_message_handlers():
+    """各ワークスペースのメッセージハンドラーを設定"""
+    for workspace_id, config in WORKSPACE_CONFIGS.items():
+        @config["app"].event("message")
+        def handle_message(event, context):
+            """メッセージイベントの処理"""
+            # ワークスペースの特定
+            current_workspace_id = context.get("team_id")
+            current_config = WORKSPACE_CONFIGS.get(workspace_id)
+            if not current_config:
+                print(f"未設定のワークスペース: {current_workspace_id}")
+                return
 
-    # 設定とクライアントの取得
-    config = WORKSPACE_CONFIGS[workspace_id]
-    client = workspace_clients[workspace_id]
+            # 設定とクライアントの取得
+            client = current_config["client"]  # workspace_clientsの代わりにconfigから直接取得
 
-    # タイムスタンプの確認
-    timestamp = float(event.get('ts', 0))
-    event_time = datetime.fromtimestamp(timestamp)
-    
-    print(f"==== 新しいメッセージ（{workspace_id}） ====")
-    print(f"受信時刻: {datetime.now()}")
-    print(f"メッセージ時刻: {event_time}")
+            # タイムスタンプの確認
+            timestamp = float(event.get('ts', 0))
+            event_time = datetime.fromtimestamp(timestamp)
+            
+            print(f"==== 新しいメッセージ（{current_workspace_id}） ====")
+            print(f"受信時刻: {datetime.now()}")
+            print(f"メッセージ時刻: {event_time}")
 
-    # メッセージの検証
-    if "text" not in event:
-        print("テキストなし")
-        return
+            # メッセージの検証
+            if "text" not in event:
+                print("テキストなし")
+                return
 
-    text = event["text"]
-    if f"<@{config['target_user_id']}>" not in text:
-        print("監視対象ユーザーのメンションなし")
-        return
+            text = event["text"]
+            if f"<@{current_config['target_user_id']}>" not in text:
+                print("監視対象ユーザーのメンションなし")
+                return
 
-    try:
-        # メッセージ情報の取得
-        user = event.get("user", "unknown_user")
-        channel = event.get("channel", "unknown_channel")
+            try:
+                # メッセージ情報の取得
+                user = event.get("user", "unknown_user")
+                channel = event.get("channel", "unknown_channel")
 
-        # ユーザー情報の取得
-        try:
-            user_info = client.users_info(user=user)
-            user_name = user_info["user"]["profile"]["real_name"] if user_info["ok"] else f"Unknown ({user})"
-        except Exception as e:
-            print(f"ユーザー情報の取得エラー: {e}")
-            user_name = f"Unknown ({user})"
+                # ユーザー情報の取得
+                try:
+                    user_info = client.users_info(user=user)
+                    user_name = user_info["user"]["profile"]["real_name"] if user_info["ok"] else f"Unknown ({user})"
+                except Exception as e:
+                    print(f"ユーザー情報の取得エラー: {e}")
+                    user_name = f"Unknown ({user})"
 
-        # チャンネル情報の取得
-        try:
-            channel_info = client.conversations_info(channel=channel)
-            channel_name = channel_info["channel"]["name"] if channel_info["ok"] else f"Unknown ({channel})"
-        except Exception as e:
-            print(f"チャンネル情報の取得エラー: {e}")
-            channel_name = f"Unknown ({channel})"
+                # チャンネル情報の取得
+                try:
+                    channel_info = client.conversations_info(channel=channel)
+                    channel_name = channel_info["channel"]["name"] if channel_info["ok"] else f"Unknown ({channel})"
+                except Exception as e:
+                    print(f"チャンネル情報の取得エラー: {e}")
+                    channel_name = f"Unknown ({channel})"
 
-        # メッセージの整形
-        processed_text = replace_mentions_with_names(text, client)
-        message_lines = processed_text.split('\n')
-        quoted_message = '\n>'.join(message_lines)
+                # メッセージの整形
+                processed_text = replace_mentions_with_names(text, client)
+                message_lines = processed_text.split('\n')
+                quoted_message = '\n>'.join(message_lines)
 
-        # 転送メッセージの作成
-        forward_message = (
-            f"*{workspace_id}でメンションされました*\n"
-            f">送信者: {user_name}\n"
-            f">チャンネル: #{channel_name}\n"
-            f">メッセージ: {quoted_message}"
-        )
+                # 転送メッセージの作成
+                forward_message = (
+                    f"*{current_workspace_id}でメンションされました*\n"
+                    f">送信者: {user_name}\n"
+                    f">チャンネル: #{channel_name}\n"
+                    f">メッセージ: {quoted_message}"
+                )
 
-        # 別ワークスペースに転送
-        dest_client.chat_postMessage(
-            channel=DEST_CHANNEL,
-            text=forward_message
-        )
-        print("メッセージを転送しました")
+                # 別ワークスペースに転送
+                dest_client.chat_postMessage(
+                    channel=DEST_CHANNEL,
+                    text=forward_message
+                )
+                print("メッセージを転送しました")
 
-    except Exception as e:
-        print(f"エラーが発生しました: {e}")
+            except Exception as e:
+                print(f"エラーが発生しました: {e}")
+
+# メッセージハンドラーの設定を実行
+setup_message_handlers()
 
 # Flaskルート
 @flask_app.route("/", methods=["GET"])
