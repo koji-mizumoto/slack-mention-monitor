@@ -143,12 +143,22 @@ def health_check():
 
 @flask_app.route("/slack/events/<workspace_id>", methods=["POST"])
 def slack_events(workspace_id):
-    print(f"Received event for workspace: {workspace_id}")
-    print(f"Request data: {request.get_data()}")
+    print(f"\n=== Received Slack Event ===")
+    print(f"Workspace ID: {workspace_id}")
+    print(f"Request Headers: {dict(request.headers)}")
+    print(f"Request Data: {request.get_data().decode('utf-8')}")
+    
     if workspace_id not in WORKSPACE_CONFIGS:
-        print(f"Workspace not found: {workspace_id}")
+        print(f"Error: Workspace not found: {workspace_id}")
         return "Workspace not found", 404
-    return WORKSPACE_CONFIGS[workspace_id]["handler"].handle(request)
+    
+    try:
+        result = WORKSPACE_CONFIGS[workspace_id]["handler"].handle(request)
+        print(f"Event handled successfully")
+        return result
+    except Exception as e:
+        print(f"Error handling event: {e}")
+        return str(e), 500
 
 # Renderで実行する場合の設定
 if __name__ == "__main__":
@@ -164,3 +174,11 @@ for workspace_id, config in WORKSPACE_CONFIGS.items():
     print(f"\nChecking {workspace_id}:")
     print(f"Token exists: {'source_token' in config}")
     print(f"Target user ID: {config['target_user_id']}")
+
+# 起動時のデバッグ情報
+print("=== Starting Slack Mention Monitor ===")
+print("\nWorkspace Configs:")
+for workspace_id, config in WORKSPACE_CONFIGS.items():
+    print(f"\n{workspace_id}:")
+    print(f"- Token exists: {bool(config.get('client'))}")
+    print(f"- Target User ID: {config.get('target_user_id')}")
