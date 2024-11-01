@@ -8,32 +8,35 @@ from datetime import datetime
 # Flaskアプリケーションの初期化
 flask_app = Flask(__name__)
 
-# Slackハンドラーの初期化
-handler = SlackRequestHandler(app)
-
-# 転送先ワークスペースのクライアント初期化
-dest_client = WebClient(token=os.environ["DEST_SLACK_BOT_TOKEN"])
-
 # 監視対象ワークスペースの設定
 WORKSPACE_CONFIGS = {
-    "workspace1": {
-        "source_token": os.environ["WORKSPACE1_SOURCE_TOKEN"],
-        "target_user_id": os.environ["WORKSPACE1_TARGET_USER_ID"],
+    "workspace_b": {
+        "app": App(
+            token=os.environ["WORKSPACE_B_SOURCE_TOKEN"],
+            signing_secret=os.environ["WORKSPACE_B_SIGNING_SECRET"]
+        ),
+        "client": WebClient(token=os.environ["WORKSPACE_B_SOURCE_TOKEN"]),
+        "target_user_id": os.environ["WORKSPACE_B_TARGET_USER_ID"],
+        "handler": None  # 後で初期化
     },
-    "workspace2": {
-        "source_token": os.environ["WORKSPACE2_SOURCE_TOKEN"],
-        "target_user_id": os.environ["WORKSPACE2_TARGET_USER_ID"],
+    "workspace_c": {
+        "app": App(
+            token=os.environ["WORKSPACE_C_SOURCE_TOKEN"],
+            signing_secret=os.environ["WORKSPACE_C_SIGNING_SECRET"]
+        ),
+        "client": WebClient(token=os.environ["WORKSPACE_C_SOURCE_TOKEN"]),
+        "target_user_id": os.environ["WORKSPACE_C_TARGET_USER_ID"],
+        "handler": None  # 後で初期化
     }
 }
 
-# 転送先チャンネル
-DEST_CHANNEL = os.environ["DEST_CHANNEL"]
+# 各ワークスペースのハンドラーを初期化
+for workspace_id, config in WORKSPACE_CONFIGS.items():
+    config["handler"] = SlackRequestHandler(config["app"])
 
-# 各監視対象ワークスペース用のクライアントを初期化
-workspace_clients = {
-    workspace_id: WebClient(token=config["source_token"])
-    for workspace_id, config in WORKSPACE_CONFIGS.items()
-}
+# 転送先（ワークスペースA）のクライアント初期化
+dest_client = WebClient(token=os.environ["WORKSPACE_A_BOT_TOKEN"])
+DEST_CHANNEL = os.environ["DEST_CHANNEL"]
 
 def replace_mentions_with_names(text, client):
     """メンションを実際のユーザー名に置換する"""
@@ -132,9 +135,11 @@ def handle_message(event, context):
 def health_check():
     return "Slack Mention Monitor is running!"
 
-@flask_app.route("/slack/events", methods=["POST"])
-def slack_events():
-    return handler.handle(request)
+@flask_app.route("/slack/events/<workspace_id>", methods=["POST"])
+def slack_events(workspace_id):
+    if workspace_id not in WORKSPACE_CONFIGS:
+        return "Workspace not found", 404
+    return WORKSPACE_CONFIGS[workspace_id]["handler"].handle(request)
 
 # Renderで実行する場合の設定
 if __name__ == "__main__":
