@@ -143,7 +143,10 @@ def health_check():
 
 @flask_app.route("/slack/events/<workspace_id>", methods=["POST"])
 def slack_events(workspace_id):
+    print(f"Received event for workspace: {workspace_id}")
+    print(f"Request data: {request.get_data()}")
     if workspace_id not in WORKSPACE_CONFIGS:
+        print(f"Workspace not found: {workspace_id}")
         return "Workspace not found", 404
     return WORKSPACE_CONFIGS[workspace_id]["handler"].handle(request)
 
@@ -154,3 +157,10 @@ if __name__ == "__main__":
 
 # Renderのアプリケーション
 application = flask_app
+
+# 起動時に環境変数をチェック
+print("=== Environment Variables Check ===")
+for workspace_id, config in WORKSPACE_CONFIGS.items():
+    print(f"\nChecking {workspace_id}:")
+    print(f"Token exists: {'source_token' in config}")
+    print(f"Target user ID: {config['target_user_id']}")
