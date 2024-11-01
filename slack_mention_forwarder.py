@@ -10,6 +10,67 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+# 環境変数の確認（WORKSPACE_CONFIGSの定義の前に）
+logger.debug("=== Environment Variables Check ===")
+for key in os.environ:
+    if 'TOKEN' in key or 'SECRET' in key:
+        logger.debug(f"{key}: {'*' * 10}")
+
+# 環境変数の確認
+logger.debug("=== Environment Variables Check ===")
+for key in os.environ:
+    if 'TOKEN' in key or 'SECRET' in key:
+        logger.debug(f"{key}: {'*' * 10}")  # トークンの値は隠して表示
+
+# 監視対象ワークスペースの設定
+WORKSPACE_CONFIGS = {
+    "workspace_b": {
+        "app": App(
+            token=os.environ.get("WORKSPACE_B_SOURCE_TOKEN"),
+            signing_secret=os.environ.get("WORKSPACE_B_SIGNING_SECRET")
+        ),
+        "client": WebClient(token=os.environ.get("WORKSPACE_B_SOURCE_TOKEN")),
+        "target_user_id": os.environ.get("WORKSPACE_B_TARGET_USER_ID"),
+        "handler": None  # 後で初期化
+    },
+    "workspace_c": {
+        "app": App(
+            token=os.environ.get("WORKSPACE_C_SOURCE_TOKEN"),
+            signing_secret=os.environ.get("WORKSPACE_C_SIGNING_SECRET")
+        ),
+        "client": WebClient(token=os.environ.get("WORKSPACE_C_SOURCE_TOKEN")),
+        "target_user_id": os.environ.get("WORKSPACE_C_TARGET_USER_ID"),
+        "handler": None  # 後で初期化
+    }
+}
+
+# 設定の詳細なデバッグ出力
+logger.debug("=== Workspace Configs ===")
+for workspace_id, config in WORKSPACE_CONFIGS.items():
+    logger.debug(f"\n{workspace_id}:")
+    logger.debug(f"app: {bool(config.get('app'))}")
+    logger.debug(f"client: {bool(config.get('client'))}")
+    logger.debug(f"target_user_id: {config.get('target_user_id')}")
+    logger.debug(f"handler: {bool(config.get('handler'))}")
+
+# クライアントの初期化を確認
+try:
+    dest_client = WebClient(token=os.environ["WORKSPACE_A_BOT_TOKEN"])
+    logger.debug("Destination client initialized successfully")
+except Exception as e:
+    logger.error(f"Error initializing destination client: {e}")
+
+# 各ワークスペースのクライアント初期化を確認
+for workspace_id in ["workspace_b", "workspace_c"]:
+    try:
+        token_key = f"WORKSPACE_{workspace_id[-1].upper()}_SOURCE_TOKEN"
+        secret_key = f"WORKSPACE_{workspace_id[-1].upper()}_SIGNING_SECRET"
+        logger.debug(f"Checking {workspace_id}")
+        logger.debug(f"Token key exists: {token_key in os.environ}")
+        logger.debug(f"Secret key exists: {secret_key in os.environ}")
+    except Exception as e:
+        logger.error(f"Error checking {workspace_id}: {e}")
+
 # Flaskアプリケーションの初期化
 flask_app = Flask(__name__)
 
