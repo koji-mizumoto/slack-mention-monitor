@@ -170,24 +170,19 @@ def keep_alive():
         time.sleep(600)  # 10分ごとにリクエスト
 
 if __name__ == "__main__":
-    while True:
-        try:
-            print("アプリケーションを起動します...")
-            
-            # キープアライブスレッドの起動
-            keep_alive_thread = threading.Thread(target=keep_alive)
-            keep_alive_thread.daemon = True
-            keep_alive_thread.start()
-            
-            # 定期チェックスレッドの起動
-            check_thread = threading.Thread(target=periodic_check)
-            check_thread.daemon = True
-            check_thread.start()
-            
-            # アプリケーションの起動
-            app.start(port=port, host="0.0.0.0")
+    print(f"アプリケーションを起動します（ポート: {port}）...")
+    
+    try:
+        # キープアライブスレッドの起動
+        keep_alive_thread = threading.Thread(target=keep_alive)
+        keep_alive_thread.daemon = True
+        keep_alive_thread.start()
         
-        except Exception as e:
-            print(f"エラーが発生しました: {e}")
-            print("30秒後に再起動します...")
-            time.sleep(30)
+        # アプリケーションの起動（ホストとポートを明示的に指定）
+        app.start(port=port, host="0.0.0.0")
+    except Exception as e:
+        print(f"エラーが発生しました: {e}")
+        
+        # エラー発生時は30秒待って再試行
+        print("30秒後に再起動します...")
+        time.sleep(30)

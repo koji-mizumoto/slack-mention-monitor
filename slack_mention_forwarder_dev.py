@@ -7,6 +7,14 @@ from datetime import datetime
 # 環境変数の読み込み
 load_dotenv()
 
+# 環境変数の詳細確認
+print("\n==== 環境変数の詳細確認 ====")
+for key in ['TARGET_USER_ID', 'DEST_CHANNEL', 'SOURCE_SLACK_BOT_TOKEN', 'SOURCE_SIGNING_SECRET']:
+    value = os.environ.get(key, '未設定')
+    masked_value = value[:10] + '...' if value != '未設定' and len(value) > 10 else value
+    print(f"{key}: {masked_value}")
+print("===========================\n")
+
 # 開発環境用の設定
 port = int(os.environ.get("PORT", 3000))
 
@@ -30,8 +38,21 @@ app = App(
     signing_secret=SOURCE_SIGNING_SECRET
 )
 
+print("\n==== アプリケーション初期化完了 ====")
+print(f"Botトークン: {SOURCE_SLACK_BOT_TOKEN[:10]}...")
+print("===================================\n")
+
 # 転送先のクライアント初期化
 dest_client = WebClient(token=DEST_SLACK_BOT_TOKEN)
+
+# テスト用のエンドポイント
+@app.message("^test$")  # 完全一致の場合のみ
+def handle_test_message(message, say):
+    print("\n==== テストメッセージ受信 ====")
+    print(message)
+    print("============================\n")
+    say("テストメッセージを受信しました！")
+
 
 @app.event("message")
 def handle_message(event, say):
@@ -151,21 +172,19 @@ def handle_message(event, say):
         print(f"全体的なエラーが発生しました: {e}")
         print("イベントの内容:", event)
 
-
-def keep_alive():
-    app_url = "https://あなたのアプリ名.onrender.com/"  # RenderのURLに変更
-    while True:
-        try:
-            response = requests.get(app_url)
-            print(f"[{datetime.now()}] キープアライブ ping 送信: {response.status_code}")
-        except Exception as e:
-            print(f"[{datetime.now()}] キープアライブ エラー: {e}")
-        time.sleep(600)  # 10分ごとにリクエスト
-
 if __name__ == "__main__":
-    print("開発環境でアプリケーションを起動します...")
+    print("\n==== アプリケーション起動 ====")
     print(f"ポート: {port}")
-    print("ngrokのURLをSlack APIの設定で更新してください")
+    print("以下の手順で設定してください：")
+    print("1. ngrokを起動: ngrok http 3000")
+    print("2. 生成されたURLをSlack APIの設定で更新")
+    print("3. Event SubscriptionsのRequest URLを更新")
+    print("=============================\n")
     
-    # アプリケーションの起動（開発環境用）
-    app.start(port=port)
+    try:
+        # アプリケーションの起動（開発環境用）
+        app.start(port=port)
+    except Exception as e:
+        print(f"\n==== エラー発生 ====")
+        print(f"エラー内容: {e}")
+        print("===================\n")
