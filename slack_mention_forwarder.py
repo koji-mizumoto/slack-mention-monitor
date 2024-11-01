@@ -4,6 +4,11 @@ from slack_sdk import WebClient
 from flask import Flask, request
 from slack_bolt.adapter.flask import SlackRequestHandler
 from datetime import datetime
+import logging
+
+# ロギングの設定
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 # Flaskアプリケーションの初期化
 flask_app = Flask(__name__)
@@ -143,21 +148,21 @@ def health_check():
 
 @flask_app.route("/slack/events/<workspace_id>", methods=["POST"])
 def slack_events(workspace_id):
-    print(f"\n=== Received Slack Event ===")
-    print(f"Workspace ID: {workspace_id}")
-    print(f"Request Headers: {dict(request.headers)}")
-    print(f"Request Data: {request.get_data().decode('utf-8')}")
+    logger.info(f"\n=== Received Slack Event ===")
+    logger.info(f"Workspace ID: {workspace_id}")
+    logger.info(f"Request Headers: {dict(request.headers)}")
+    logger.info(f"Request Data: {request.get_data().decode('utf-8')}")
     
     if workspace_id not in WORKSPACE_CONFIGS:
-        print(f"Error: Workspace not found: {workspace_id}")
+        logger.error(f"Error: Workspace not found: {workspace_id}")
         return "Workspace not found", 404
     
     try:
         result = WORKSPACE_CONFIGS[workspace_id]["handler"].handle(request)
-        print(f"Event handled successfully")
+        logger.info("Event handled successfully")
         return result
     except Exception as e:
-        print(f"Error handling event: {e}")
+        logger.error(f"Error handling event: {e}")
         return str(e), 500
 
 # Renderで実行する場合の設定
@@ -176,9 +181,8 @@ for workspace_id, config in WORKSPACE_CONFIGS.items():
     print(f"Target user ID: {config['target_user_id']}")
 
 # 起動時のデバッグ情報
-print("=== Starting Slack Mention Monitor ===")
-print("\nWorkspace Configs:")
+logger.info("=== Starting Slack Mention Monitor ===")
 for workspace_id, config in WORKSPACE_CONFIGS.items():
-    print(f"\n{workspace_id}:")
-    print(f"- Token exists: {bool(config.get('client'))}")
-    print(f"- Target User ID: {config.get('target_user_id')}")
+    logger.info(f"\nChecking {workspace_id}:")
+    logger.info(f"Token exists: {bool(config.get('client'))}")
+    logger.info(f"Target User ID: {config.get('target_user_id')}")
