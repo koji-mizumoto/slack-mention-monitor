@@ -1,0 +1,25 @@
+■本番環境
+Render上にデプロイして実行。
+
+Git-hubと連動し、自動でデプロイされる。
+
+slack_mention_forwarder.py　でプログラムが動く
+
+■開発環境
+ngroke.exeが発行するイベントリスナーを使用して、ローカル環境で実行。
+
+slack_mention_forwarder_dev.py　でプログラムが動く
+
+■本番／開発切替手順
+https://api.slack.com/apps/A06FL5EGCF8/event-subscriptions?
+
+Event SubscriptionsのRequest URLを切り替える。
+
+・本番
+https://slack-mention-monitor.onrender.com/slack/events
+
+・開発
+下記手順で毎回発行されるURL
+1. start_dev.batをダブルクリックで実行
+2. ngrokが生成したURLをコピー
+

@@ -3,25 +3,18 @@ from slack_bolt import App
 from slack_sdk import WebClient
 from dotenv import load_dotenv
 from datetime import datetime
-import requests
-import threading
-import time
 
 # 環境変数の読み込み
 load_dotenv()
 
-# ポート番号の設定
+# 開発環境用の設定
 port = int(os.environ.get("PORT", 3000))
 
-# 送信元のSlackワークスペースの設定
+# Slack設定
 SOURCE_SLACK_BOT_TOKEN = os.environ["SOURCE_SLACK_BOT_TOKEN"]
 SOURCE_SIGNING_SECRET = os.environ["SOURCE_SIGNING_SECRET"]
-
-# 転送先のSlackワークスペースの設定
 DEST_SLACK_BOT_TOKEN = os.environ["DEST_SLACK_BOT_TOKEN"]
 DEST_CHANNEL = os.environ["DEST_CHANNEL"]
-
-# 監視対象のユーザーIDを環境変数から取得
 TARGET_USER_ID = os.environ["TARGET_USER_ID"]
 
 # メンション対象のユーザーID
@@ -160,7 +153,7 @@ def handle_message(event, say):
 
 
 def keep_alive():
-    app_url = "https://slack-mention-monitor.onrender.com/"  # RenderのURLに変更
+    app_url = "https://あなたのアプリ名.onrender.com/"  # RenderのURLに変更
     while True:
         try:
             response = requests.get(app_url)
@@ -170,24 +163,9 @@ def keep_alive():
         time.sleep(600)  # 10分ごとにリクエスト
 
 if __name__ == "__main__":
-    while True:
-        try:
-            print("アプリケーションを起動します...")
-            
-            # キープアライブスレッドの起動
-            keep_alive_thread = threading.Thread(target=keep_alive)
-            keep_alive_thread.daemon = True
-            keep_alive_thread.start()
-            
-            # 定期チェックスレッドの起動
-            check_thread = threading.Thread(target=periodic_check)
-            check_thread.daemon = True
-            check_thread.start()
-            
-            # アプリケーションの起動
-            app.start(port=port, host="0.0.0.0")
-        
-        except Exception as e:
-            print(f"エラーが発生しました: {e}")
-            print("30秒後に再起動します...")
-            time.sleep(30)
+    print("開発環境でアプリケーションを起動します...")
+    print(f"ポート: {port}")
+    print("ngrokのURLをSlack APIの設定で更新してください")
+    
+    # アプリケーションの起動（開発環境用）
+    app.start(port=port)
