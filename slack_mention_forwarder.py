@@ -53,6 +53,11 @@ def create_app():
             logger.error(f"Error: {e}")
             return str(e), 500
 
+    @flask_app.event("message")
+    def handle_message_events(body, logger):
+        logger.info(body)  # デバッグ用ログ
+        # メッセージ処理ロジック
+
     return flask_app
 
 # アプリケーションのインスタンス作成
