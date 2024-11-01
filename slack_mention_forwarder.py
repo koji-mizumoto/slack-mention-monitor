@@ -121,21 +121,21 @@ def replace_mentions_with_names(text, client):
     
     return text
 
+# メッセージハンドラーの設定を関数化
 def setup_message_handlers():
     """各ワークスペースのメッセージハンドラーを設定"""
     for workspace_id, config in WORKSPACE_CONFIGS.items():
         @config["app"].event("message")
         def handle_message(event, context):
-            """メッセージイベントの処理"""
             # ワークスペースの特定
             current_workspace_id = context.get("team_id")
-            current_config = WORKSPACE_CONFIGS.get(workspace_id)
-            if not current_config:
-                print(f"未設定のワークスペース: {current_workspace_id}")
+            if current_workspace_id not in WORKSPACE_CONFIGS:
+                logger.error(f"未設定のワークスペース: {current_workspace_id}")
                 return
 
             # 設定とクライアントの取得
-            client = current_config["client"]  # workspace_clientsの代わりにconfigから直接取得
+            current_config = WORKSPACE_CONFIGS[current_workspace_id]
+            client = current_config["client"]
 
             # タイムスタンプの確認
             timestamp = float(event.get('ts', 0))
@@ -199,7 +199,7 @@ def setup_message_handlers():
             except Exception as e:
                 print(f"エラーが発生しました: {e}")
 
-# メッセージハンドラーの設定を実行
+# アプリケーション初期化時にハンドラーを設定
 setup_message_handlers()
 
 # Flaskルート
@@ -209,21 +209,17 @@ def health_check():
 
 @flask_app.route("/slack/events/<workspace_id>", methods=["POST"])
 def slack_events(workspace_id):
-    logger.info(f"\n=== Received Slack Event ===")
-    logger.info(f"Workspace ID: {workspace_id}")
-    logger.info(f"Request Headers: {dict(request.headers)}")
-    logger.info(f"Request Data: {request.get_data().decode('utf-8')}")
-    
+    logger.info(f"Received event for workspace: {workspace_id}")
     if workspace_id not in WORKSPACE_CONFIGS:
-        logger.error(f"Error: Workspace not found: {workspace_id}")
+        logger.error(f"Workspace not found: {workspace_id}")
         return "Workspace not found", 404
     
     try:
         result = WORKSPACE_CONFIGS[workspace_id]["handler"].handle(request)
-        logger.info("Event handled successfully")
+        logger.info(f"Event handled successfully for {workspace_id}")
         return result
     except Exception as e:
-        logger.error(f"Error handling event: {e}")
+        logger.error(f"Error handling event for {workspace_id}: {e}")
         return str(e), 500
 
 # Renderで実行する場合の設定
