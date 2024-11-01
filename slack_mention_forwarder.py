@@ -1,13 +1,17 @@
+import os
 from slack_bolt import App
 from slack_sdk import WebClient
-import os
 from dotenv import load_dotenv
 from datetime import datetime
-import time
+import requests
 import threading
+import time
 
 # 環境変数の読み込み
 load_dotenv()
+
+# ポート番号の設定
+port = int(os.environ.get("PORT", 3000))
 
 # 送信元のSlackワークスペースの設定
 SOURCE_SLACK_BOT_TOKEN = os.environ["SOURCE_SLACK_BOT_TOKEN"]
@@ -155,20 +159,35 @@ def handle_message(event, say):
         print("イベントの内容:", event)
 
 
+def keep_alive():
+    app_url = "https://あなたのアプリ名.onrender.com/"  # RenderのURLに変更
+    while True:
+        try:
+            response = requests.get(app_url)
+            print(f"[{datetime.now()}] キープアライブ ping 送信: {response.status_code}")
+        except Exception as e:
+            print(f"[{datetime.now()}] キープアライブ エラー: {e}")
+        time.sleep(600)  # 10分ごとにリクエスト
 
 if __name__ == "__main__":
-    print("アプリケーションを起動します...")
-    
-    # 定期的な生存確認ログ
-    def periodic_check():
-        while True:
-            print(f"[{datetime.now()}] アプリケーションは正常に動作しています")
-            time.sleep(300)  # 5分ごとにログを出力
-    
-    import threading
-    check_thread = threading.Thread(target=periodic_check)
-    check_thread.daemon = True
-    check_thread.start()
-    
-    # アプリケーションの起動
-    app.start(port=3000)
+    while True:
+        try:
+            print("アプリケーションを起動します...")
+            
+            # キープアライブスレッドの起動
+            keep_alive_thread = threading.Thread(target=keep_alive)
+            keep_alive_thread.daemon = True
+            keep_alive_thread.start()
+            
+            # 定期チェックスレッドの起動
+            check_thread = threading.Thread(target=periodic_check)
+            check_thread.daemon = True
+            check_thread.start()
+            
+            # アプリケーションの起動
+            app.start(port=port, host="0.0.0.0")
+        
+        except Exception as e:
+            print(f"エラーが発生しました: {e}")
+            print("30秒後に再起動します...")
+            time.sleep(30)
