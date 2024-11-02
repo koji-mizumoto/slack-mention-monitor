@@ -2,7 +2,7 @@ import os
 from slack_bolt import App
 from slack_bolt.adapter.flask import SlackRequestHandler
 from slack_sdk import WebClient
-from flask import Flask, request
+from flask import Flask, request, jsonify
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
@@ -43,24 +43,24 @@ def create_app():
 
     @flask_app.route("/slack/events/<workspace_id>", methods=["POST"])
     def slack_events(workspace_id):
-        logger.info(f"Received event for workspace: {workspace_id}")
-        if workspace_id not in workspace_configs:
-            return "Workspace not found", 404
+        logger.info(f"Received request for workspace: {workspace_id}")
+        logger.info(f"Request data: {request.get_data()}")
         
-        try:
-            handler = workspace_configs[workspace_id]["handler"]
-            result = handler.handle(request)
-            logger.info(f"Event handled for {workspace_id}")
-            return result
-        except Exception as e:
-            logger.error(f"Error: {e}")
-            return str(e), 500
+        if workspace_id not in workspace_configs:
+            return jsonify({"error": "Invalid workspace"}), 404
+        
+        handler = workspace_configs[workspace_id]["handler"]
+        return handler.handle(request)
 
     for workspace_id, config in workspace_configs.items():
         @config["app"].event("message")
-        def handle_message(event, say):
-            logger.info(f"Received message event: {event}")
-            # メッセージ処理ロジック
+        def handle_message(body, logger):
+            logger.info(f"Received message event: {body}")
+            try:
+                # メッセージ処理ロジック
+                pass
+            except Exception as e:
+                logger.error(f"Error processing message: {e}")
 
     return flask_app
 
