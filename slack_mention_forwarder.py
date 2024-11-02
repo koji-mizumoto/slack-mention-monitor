@@ -52,20 +52,57 @@ def create_app():
         logger.info(f"Body: {request.get_data().decode('utf-8')}")
         
         try:
-            # チャレンジレスポンスの処理
-            if request.json.get("type") == "url_verification":
-                return jsonify({"challenge": request.json["challenge"]})
+            event_data = request.json
             
-            team_id = request.json.get("team_id")
-            if not team_id or team_id not in workspace_configs:
-                logger.error(f"Invalid team_id: {team_id}")
-                return jsonify({"error": "Invalid workspace"}), 404
+            # URLの検証チャレンジに応答
+            if event_data.get("type") == "url_verification":
+                return jsonify({"challenge": event_data["challenge"]})
                 
-            handler = workspace_configs[team_id]["handler"]
-            return handler.handle(request)
+            # チーム情報の取得
+            team_id = event_data.get("team_id")
+            if not team_id:
+                logger.error("team_id not found in request")
+                return jsonify({"error": "team_id not found"}), 400
+                
+            # イベントの処理
+            event = event_data.get("event", {})
+            event_type = event.get("type")
+            
+            logger.info(f"Processing {event_type} event for team {team_id}")
+            
+            if event_type == "message":
+                # メッセージイベントの処理
+                return handle_message_event(team_id, event)
+                
+            return jsonify({"ok": True})
             
         except Exception as e:
             logger.error(f"Error processing event: {e}")
+            return jsonify({"error": str(e)}), 500
+
+    def handle_message_event(team_id, event):
+        try:
+            if team_id not in workspace_configs:
+                logger.error(f"Team {team_id} not configured")
+                return jsonify({"error": "Team not configured"}), 404
+                
+            config = workspace_configs[team_id]
+            text = event.get("text", "")
+            channel = event.get("channel")
+            
+            logger.info(f"Message in channel {channel}: {text}")
+            
+            # メンションの検知と処理
+            if "@mention" in text:
+                config["client"].chat_postMessage(
+                    channel=channel,
+                    text="メンションを検知しました"
+                )
+                
+            return jsonify({"ok": True})
+            
+        except Exception as e:
+            logger.error(f"Error handling message: {e}")
             return jsonify({"error": str(e)}), 500
 
     for workspace_id, config in workspace_configs.items():
@@ -90,6 +127,11 @@ def create_app():
     @flask_app.route("/", methods=["GET", "HEAD"])
     def health_check():
         return jsonify({"status": "ok"}), 200
+
+    # 環境変数のログ出力（トークンは除く）
+    logger.info("Checking environment variables...")
+    logger.info(f"PORT: {os.environ.get('PORT')}")
+    logger.info(f"Configured workspaces: {list(workspace_configs.keys())}")
 
     return flask_app
 
