@@ -41,15 +41,17 @@ def create_app():
     for config in workspace_configs.values():
         config["handler"] = SlackRequestHandler(config["app"])
 
-    @flask_app.route("/slack/events/<workspace_id>", methods=["POST"])
-    def slack_events(workspace_id):
-        logger.info(f"Received request for workspace: {workspace_id}")
+    @flask_app.route("/slack/events", methods=["POST"])
+    def slack_events():
+        logger.info(f"Request headers: {request.headers}")
         logger.info(f"Request data: {request.get_data()}")
         
-        if workspace_id not in workspace_configs:
+        # ワークスペースIDをリクエストから取得
+        team_id = request.json.get("team_id")
+        if team_id not in workspace_configs:
             return jsonify({"error": "Invalid workspace"}), 404
         
-        handler = workspace_configs[workspace_id]["handler"]
+        handler = workspace_configs[team_id]["handler"]
         return handler.handle(request)
 
     for workspace_id, config in workspace_configs.items():
@@ -57,8 +59,16 @@ def create_app():
         def handle_message(body, logger):
             logger.info(f"Received message event: {body}")
             try:
-                # メッセージ処理ロジック
-                pass
+                event = body["event"]
+                channel = event["channel"]
+                text = event["text"]
+                
+                # メッセージ処理ロジックを実装
+                if "@mention" in text:
+                    config["client"].chat_postMessage(
+                        channel=channel,
+                        text="メンションを検知しました"
+                    )
             except Exception as e:
                 logger.error(f"Error processing message: {e}")
 
