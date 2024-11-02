@@ -12,6 +12,9 @@ def create_app():
     """アプリケーションファクトリー関数"""
     flask_app = Flask(__name__)
     
+    port = int(os.getenv("PORT", 10000))
+    flask_app.config['PORT'] = port
+    
     # 環境変数の確認
     workspace_configs = {
         "workspace_b": {
@@ -55,8 +58,8 @@ def create_app():
 
     for workspace_id, config in workspace_configs.items():
         @config["app"].event("message")
-        def handle_message_events(body, logger):
-            logger.info(body)
+        def handle_message(event, say):
+            logger.info(f"Received message event: {event}")
             # メッセージ処理ロジック
 
     return flask_app
