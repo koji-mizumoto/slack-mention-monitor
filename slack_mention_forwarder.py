@@ -5,12 +5,16 @@ from slack_sdk import WebClient
 from flask import Flask, request, jsonify
 import logging
 
+# ロギングの設定
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 def create_app():
     """アプリケーションファクトリー関数"""
     flask_app = Flask(__name__)
+    
+    # デバッグモードを有効化
+    flask_app.debug = True
     
     port = int(os.getenv("PORT", 10000))
     flask_app.config['PORT'] = port
@@ -43,16 +47,26 @@ def create_app():
 
     @flask_app.route("/slack/events", methods=["POST"])
     def slack_events():
-        logger.info(f"Request headers: {request.headers}")
-        logger.info(f"Request data: {request.get_data()}")
+        logger.info("Received Slack event")
+        logger.info(f"Headers: {request.headers}")
+        logger.info(f"Body: {request.get_data().decode('utf-8')}")
         
-        # ワークスペースIDをリクエストから取得
-        team_id = request.json.get("team_id")
-        if team_id not in workspace_configs:
-            return jsonify({"error": "Invalid workspace"}), 404
-        
-        handler = workspace_configs[team_id]["handler"]
-        return handler.handle(request)
+        try:
+            # チャレンジレスポンスの処理
+            if request.json.get("type") == "url_verification":
+                return jsonify({"challenge": request.json["challenge"]})
+            
+            team_id = request.json.get("team_id")
+            if not team_id or team_id not in workspace_configs:
+                logger.error(f"Invalid team_id: {team_id}")
+                return jsonify({"error": "Invalid workspace"}), 404
+                
+            handler = workspace_configs[team_id]["handler"]
+            return handler.handle(request)
+            
+        except Exception as e:
+            logger.error(f"Error processing event: {e}")
+            return jsonify({"error": str(e)}), 500
 
     for workspace_id, config in workspace_configs.items():
         @config["app"].event("message")
@@ -71,6 +85,11 @@ def create_app():
                     )
             except Exception as e:
                 logger.error(f"Error processing message: {e}")
+
+    # ヘルスチェックエンドポイントを追加
+    @flask_app.route("/", methods=["GET", "HEAD"])
+    def health_check():
+        return jsonify({"status": "ok"}), 200
 
     return flask_app
 
